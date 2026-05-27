@@ -21,7 +21,12 @@ def _get_scalers(scaler):
     x_scaler = scalers['x_scaler']
     return x_scaler, y_scaler
 
-def _sample_noise(AMOC, threshold, cov_on, cov_off):
+    return cov_on, cov_off
+
+def _sample_noise(AMOC, threshold, cov_on, cov_off, noise_prev, rho, k):
+
+    cov_on = cov_on * k
+    cov_off = cov_off *k
 
     cov = cov_on if AMOC > threshold else cov_off
     stds = np.sqrt(np.diag(cov))
@@ -42,8 +47,10 @@ def _sample_noise(AMOC, threshold, cov_on, cov_off):
     else: 
         PD_200m_noise = stds[2] * np.sign(noise[2])
 
-    return AMOC_noise, SFWF_noise, PD_200m_noise        
-        
+    noise_raw = np.array([AMOC_noise, SFWF_noise, PD_200m_noise])
+    noise = (np.sqrt(1 - rho**2) * noise_raw) + (noise_prev * rho)
+
+    return noise               
 
 
 class CoupledModel():
@@ -58,12 +65,22 @@ class CoupledModel():
         self.x_scaler_SFWF, self.y_scaler_SFWF = _get_scalers(SFWF_load['scaler'])
         self.x_scaler_PD_200m, self.y_scaler_PD_200m = _get_scalers(PD_200m_load['scaler'])
 
+    @classmethod
+    def from_trained(cls, trained_models):
+        instance = cls.__new__(cls)
+        instance.NN_AMOC    = trained_models['NN_AMOC']['model']
+        instance.NN_SFWF    = trained_models['NN_SFWF']['model']
+        instance.NN_PD_200m = trained_models['NN_PD_200m']['model']
+        instance.x_scaler_AMOC,    instance.y_scaler_AMOC    = trained_models['NN_AMOC']['x_scaler'],    trained_models['NN_AMOC']['y_scaler']
+        instance.x_scaler_SFWF,    instance.y_scaler_SFWF    = trained_models['NN_SFWF']['x_scaler'],    trained_models['NN_SFWF']['y_scaler']
+        instance.x_scaler_PD_200m, instance.y_scaler_PD_200m = trained_models['NN_PD_200m']['x_scaler'], trained_models['NN_PD_200m']['y_scaler']
+        return instance
 
-    def predict(self, device, X, start_idx, lag, AMOC_features, SFWF_features, PD_200m_features, steps, threshold, cov_on, cov_off):
+    def predict(self, device, X, start_idx, lag, horizon, AMOC_features, SFWF_features, PD_200m_features, steps, threshold, cov_on, cov_off, rho, k):
 
-        X_init_AMOC = X[AMOC_features][start_idx - lag : start_idx]
-        X_init_SFWF = X[SFWF_features][start_idx - lag : start_idx]
-        X_init_PD_200m = X[PD_200m_features][start_idx - lag : start_idx]
+        X_init_AMOC = X[AMOC_features][start_idx - (lag + horizon -1): start_idx]
+        X_init_SFWF = X[SFWF_features][start_idx - (lag + horizon -1) : start_idx]
+        X_init_PD_200m = X[PD_200m_features][start_idx - (lag + horizon -1) : start_idx]
 
         X_init_AMOC_scaled = self.x_scaler_AMOC.transform(X_init_AMOC)
         X_init_SFWF_scaled = self.x_scaler_SFWF.transform(X_init_SFWF)
@@ -99,6 +116,8 @@ class CoupledModel():
 
         threshold_scaled = (threshold - self.y_scaler_AMOC.mean_[0]) / self.y_scaler_AMOC.scale_[0]
 
+        noise_prev = np.zeros(3)
+
         for s in range(steps):
 
             with torch.no_grad():
@@ -106,17 +125,18 @@ class CoupledModel():
                 SFWF_s = self.NN_SFWF(X_SFWF_t.unsqueeze(0).to(device)).cpu().numpy()
                 PD_200m_s = self.NN_PD_200m(X_PD_200m_t.unsqueeze(0).to(device)).cpu().numpy()
 
-            AMOC_noise, SFWF_noise, PD_200m_noise = _sample_noise(AMOC_s, threshold_scaled, cov_on, cov_off)
+            noise_new = _sample_noise(AMOC_s, threshold_scaled, cov_on, cov_off, noise_prev, rho, k)
             
-            AMOC_noise_scaled   = AMOC_noise / self.y_scaler_AMOC.scale_[0]
-            SFWF_noise_scaled   = SFWF_noise / self.y_scaler_SFWF.scale_[0]
-            PD_200m_noise_scaled = PD_200m_noise / self.y_scaler_PD_200m.scale_[0]
+            AMOC_noise_scaled   = noise_new[0] / self.y_scaler_AMOC.scale_[0]
+            SFWF_noise_scaled   = noise_new[1] / self.y_scaler_SFWF.scale_[0]
+            PD_200m_noise_scaled = noise_new[2] / self.y_scaler_PD_200m.scale_[0]
+
+            noise_prev = noise_new
 
             AMOC_s += AMOC_noise_scaled
             SFWF_s += SFWF_noise_scaled
             PD_200m_s += PD_200m_noise_scaled
 
-         
             AMOC_new = torch.tensor([[SFWF_s.item(), PD_200m_s.item()]], dtype=torch.float32)
             X_AMOC_t = torch.cat([X_AMOC_t[1:], AMOC_new], dim=0) 
             SFWF_new = torch.tensor([[AMOC_s.item(), PD_200m_s.item()]], dtype=torch.float32)

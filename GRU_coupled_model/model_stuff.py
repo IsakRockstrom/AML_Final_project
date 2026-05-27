@@ -54,45 +54,51 @@ def model_setup(device, params, n_epochs, train_loader, eval_loader, X_eval_t, y
 
             train_loss += loss.item()
 
+        train_losses.append(train_loss / len(train_loader))
         eval_loss = 0
+
+        if len(eval_loader.dataset) > 0:
+            
+            model.eval()
+            with torch.no_grad():
+                for x_batch, y_batch in eval_loader:
+
+                    x_batch = x_batch.to(device)
+                    y_batch = y_batch.to(device)
+
+                    y_pred = model(x_batch)
+                    loss = loss_fn(y_pred, y_batch)
+
+                    eval_loss += loss.item()
+
+            
+            eval_losses.append(eval_loss / len(eval_loader))
+
+            print(f"Epoch {epoch} with train loss: {train_loss / len(train_loader)} and eval loss: {eval_loss / len(eval_loader)}")
+
+    if len(eval_loader.dataset) > 0:
+
+        fig, ax = plt.subplots()
+
+        ax.plot(train_losses, label = "train")
+        ax.plot(eval_losses, label = "validation")
+        fig.legend()
+
         model.eval()
         with torch.no_grad():
-            for x_batch, y_batch in eval_loader:
+            preds = model(X_eval_t.to(device)).cpu().numpy()
 
-                x_batch = x_batch.to(device)
-                y_batch = y_batch.to(device)
+        plt.figure(figsize=(6, 6))
+        plt.scatter(y_eval_lag, preds, s=2, alpha=0.3)
 
-                y_pred = model(x_batch)
-                loss = loss_fn(y_pred, y_batch)
+        lims = [min(y_eval_lag.min(), preds.min()),
+                max(y_eval_lag.max(), preds.max())]
+        plt.plot(lims, lims, 'r--', label='perfect prediction')
 
-                eval_loss += loss.item()
-
-        train_losses.append(train_loss / len(train_loader))
-        eval_losses.append(eval_loss / len(eval_loader))
-
-        print(f"Epoch {epoch} with train loss: {train_loss / len(train_loader)} and eval loss: {eval_loss / len(eval_loader)}")
-
-    fig, ax = plt.subplots()
-
-    ax.plot(train_losses, label = "train")
-    ax.plot(eval_losses, label = "validation")
-    fig.legend()
-
-    model.eval()
-    with torch.no_grad():
-        preds = model(X_eval_t.to(device)).cpu().numpy()
-
-    plt.figure(figsize=(6, 6))
-    plt.scatter(y_eval_lag, preds, s=2, alpha=0.3)
-
-    lims = [min(y_eval_lag.min(), preds.min()),
-            max(y_eval_lag.max(), preds.max())]
-    plt.plot(lims, lims, 'r--', label='perfect prediction')
-
-    plt.xlabel('True')
-    plt.ylabel('Predicted')
-    plt.legend()
-    plt.tight_layout()
-    plt.show()
+        plt.xlabel('True')
+        plt.ylabel('Predicted')
+        plt.legend()
+        plt.tight_layout()
+        plt.show()
 
     return model, train_losses, eval_losses
