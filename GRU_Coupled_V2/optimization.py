@@ -7,8 +7,8 @@ from torch import nn
 from data_helpers import prepare_this_data, torchify_this_data
 from model_stuff import model_setup
 
-X          = pd.read_csv('../data/CESMDataset_Try.csv')
-variables  = ['AMOC', 'SFWF', 'PD_200m']
+X           = pd.read_csv('../data/CESMDataset_Try.csv')
+variables   = ['AMOC', 'SFWF', 'PD_200m']
 train_cut_1 = 5000
 train_cut_2 = 11000
 batch_size  = 128

@@ -1,0 +1,16 @@
+{
+  "lag": 200,
+  "train_horizon": 20,
+  "hidden_size_AMOC": 64,
+  "num_layers_AMOC": 2,
+  "dropout_AMOC": 0.4864425324166589,
+  "lr_AMOC": 0.0006220061255408285,
+  "hidden_size_SFWF": 32,
+  "num_layers_SFWF": 1,
+  "dropout_SFWF": 0.10034215389312154,
+  "lr_SFWF": 0.004214326514377264,
+  "hidden_size_PD_200m": 128,
+  "num_layers_PD_200m": 1,
+  "dropout_PD_200m": 0.43185429320276136,
+  "lr_PD_200m": 0.00045173713719212286
+}

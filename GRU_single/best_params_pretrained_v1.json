@@ -1,0 +1,12 @@
+{
+  "lag": 150,
+  "n_pretrain_epochs": 20,
+  "lr_pretrain": 0.001962635090084424,
+  "train_horizon": 120,
+  "train_steps": 200,
+  "lr_rollout": 9.945405230349677e-05,
+  "transition_prob": 0.7,
+  "dropout": 0.027353153688391404,
+  "loss": "mse",
+  "transition_config": "200_12"
+}
