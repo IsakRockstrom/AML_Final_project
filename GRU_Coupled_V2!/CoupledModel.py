@@ -164,9 +164,12 @@ class CoupledModel():
                 noise = _sample_noise(amoc_for_threshold, threshold, models, cov_on, cov_off, noise_prev, rho, k)
             else:
                 noise = _sample_noise(preds['AMOC'].item(), threshold_scaled, models, cov_on, cov_off, noise_prev, rho, k)
-
+            
             for model in models:
-                preds[model] = preds[model] + noise[model]
+                noise_scaled = noise[model] / self.scalers[model]['y_scaler'].scale_[0]
+                preds[model] = preds[model] + noise_scaled
+
+
             noise_prev = noise
 
             ''' 
