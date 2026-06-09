@@ -77,12 +77,12 @@ def objective(trial):
         lrs=lrs,
     )
 
-    # Eval always starts from a transition window, scored with MSE for fair comparison across loss functions
+    
     eval_loss = np.mean([
         eval_rollout(
             X_scaled, train_cut_1, train_cut_2,
             transition_prob=1.0,
-            threshold=14.0 / amoc_std,   # fixed high threshold
+            threshold=14.0 / amoc_std,   
             search_ahead=eval_horizon,
             models=models, features=features,
             lag=lag, eval_horizon=eval_horizon,

@@ -27,18 +27,7 @@ def _fit_double_gaussian(data, n_bins=100):
 
 def plot_distribution(true_data, pred_data, var_name='AMOC', units='Sv',
                       true_color='tab:orange', pred_color='tab:blue', ax=None, save_path=None):
-    """
-    Fit a double Gaussian to true and predicted data, plot both against
-    raw histograms, and annotate with Wasserstein distance.
-
-    Parameters
-    ----------
-    true_data : array-like   1-D array of true values
-    pred_data : array-like   1-D array of model predicted values
-    var_name  : str          variable label for axis
-    units     : str          physical units for axis label and Wasserstein annotation
-    ax        : matplotlib Axes or None (creates a new figure if None)
-    """
+    
     true_data = np.asarray(true_data).ravel()
     pred_data = np.asarray(pred_data).ravel()
 
@@ -86,19 +75,7 @@ def plot_distribution(true_data, pred_data, var_name='AMOC', units='Sv',
 def plot_power_spectrum(true_data, pred_data, var_name='AMOC', units='Sv',
                         true_color='tab:orange', pred_color='tab:blue',
                         fs=1.0, ax=None, save_path=None):
-    """
-    Compute and plot single-sided power spectral density for true and
-    predicted time series on the same log-log axes.
 
-    Parameters
-    ----------
-    true_data : array-like   1-D time series (true)
-    pred_data : array-like   1-D time series (model prediction)
-    var_name  : str          variable label
-    units     : str          physical units (used in y-axis label)
-    fs        : float        sampling frequency (default 1 = 1 sample per year)
-    ax        : matplotlib Axes or None
-    """
     true_data = np.asarray(true_data, dtype=float).ravel()
     pred_data = np.asarray(pred_data, dtype=float).ravel()
 
@@ -108,8 +85,8 @@ def plot_power_spectrum(true_data, pred_data, var_name='AMOC', units='Sv',
         X = np.fft.rfft(x)
         freqs = np.fft.rfftfreq(N, d=1.0 / fs)
         psd = (np.abs(X) ** 2) / (N * fs)
-        psd[1:-1] *= 2.0          # single-sided correction
-        return freqs[1:], psd[1:] # drop DC component
+        psd[1:-1] *= 2.0         
+        return freqs[1:], psd[1:] 
 
     freqs_true, psd_true = _psd(true_data)
     freqs_pred, psd_pred = _psd(pred_data)

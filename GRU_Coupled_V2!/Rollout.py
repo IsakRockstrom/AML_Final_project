@@ -63,8 +63,8 @@ def train_rollout(X, train_cut_1, train_cut_2, transition_prob, threshold, searc
         else:
             w = rng.choice(normal)
 
-        X_w = X[w : w + lag].values          # [lag, n_features]
-        y_w = X[w + lag : w + lag + train_horizon].values  # [train_horizon, n_features]
+        X_w = X[w : w + lag].values         
+        y_w = X[w + lag : w + lag + train_horizon].values  
 
         loss = torch.tensor(0.0)
         for j in range(train_horizon):
