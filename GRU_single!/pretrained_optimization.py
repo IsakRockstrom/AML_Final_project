@@ -11,7 +11,7 @@ from Rollout import train_rollout, _predict
 from Pretrain import pretrain
 from SingleModel import compute_covariances, _sample_noise
 
-# ── Data setup ────────────────────────────────────────────────────────────────
+
 X_df       = pd.read_csv('../data/CESMDataset_Try.csv')
 model_vars = ['AMOC', 'SFWF', 'PD_200m']
 feature_cols = target_cols = model_vars
@@ -28,16 +28,14 @@ for var in model_vars:
 amoc_std = y_scalers['AMOC'].scale_[0]
 X_np     = X_scaled.values
 
-# ── Fixed eval windows (global indices into X_scaled) ─────────────────────────
-# Each window: model gets lag steps of context, predicts the next 400 steps
-EVAL_WINDOWS  = [6300, 9000, 6600, 9900]   # off→on: 6300, 9000 | on→off: 6600, 9900
+
+EVAL_WINDOWS  = [6300, 9000, 6600, 9900]   
 EVAL_HORIZON  = 400
 DEVICE        = 'cpu'
 
 feat_indices = [list(X_scaled.columns).index(f) for f in feature_cols]
 tgt_indices  = [list(X_scaled.columns).index(t) for t in target_cols]
 
-# Precompute once outside objective
 cov_on, cov_off = compute_covariances(X_df, model_vars, threshold=14.0)
 amoc_idx = model_vars.index('AMOC')
 threshold_scaled_eval = 13.0 / amoc_std
@@ -78,7 +76,6 @@ def _eval_fixed(model, start_idx, lag, rho=0.3, k=0.02, n_samples=3):
 
 
 
-# ── Optuna objective ──────────────────────────────────────────────────────────
 def objective(trial):
     lag               = trial.suggest_categorical('lag',               [150, 200])
     n_pretrain_epochs = trial.suggest_categorical('n_pretrain_epochs', [10, 20, 30])
@@ -90,7 +87,7 @@ def objective(trial):
     dropout           = trial.suggest_float('dropout', 0.0, 0.3)
     loss_name         = 'mse'
 
-    # Joint categorical to avoid nonsensical search_ahead + threshold combos
+   
     transition_config = trial.suggest_categorical('transition_config', ['200_10', '200_12', '250_12', '300_14'])
     search_ahead      = int(transition_config.split('_')[0])
     threshold_sv      = float(transition_config.split('_')[1])
@@ -109,7 +106,7 @@ def objective(trial):
         output_size = len(target_cols),
     ).to(DEVICE)
 
-    # Stage 1: teacher-forcing pre-train (always MSE, horizon=1)
+    
     pretrain(
         X_scaled, train_cut_1, train_cut_2, model,
         feature_cols, target_cols,
@@ -119,7 +116,7 @@ def objective(trial):
         device=DEVICE,
     )
 
-    # Stage 2: rollout fine-tune with trial loss function and lower lr
+  
     train_rollout(
         X_scaled, train_cut_1, train_cut_2,
         transition_prob, threshold_scaled, search_ahead,
@@ -128,7 +125,7 @@ def objective(trial):
         train_horizon=train_horizon, loss_fn=loss_fn, lr=lr_rollout,
     )
 
-    # Eval on the fixed set of windows, always with MSE for fair comparison
+    
     eval_loss = np.mean([_eval_fixed(model, w, lag) for w in EVAL_WINDOWS])
 
     print(f"Trial {trial.number}: pretrain_ep={n_pretrain_epochs}, horizon={train_horizon}, "
